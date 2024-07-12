@@ -1,0 +1,58 @@
+version: '3'
+services:
+  mysql:
+    image: public.ecr.aws/docker/library/mysql:8.3.0
+    container_name: mysql
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: node
+      LANG: C.UTF_8
+    command: --init-file /data/application/init.sql
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    volumes:
+      - ./volumes/db/mysql:/var/lib/mysql
+      - ./volumes/db/init.sql:/data/application/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+  api:
+    image: node43/api:local
+    build:
+      dockerfile: Dockerfile
+      context: ../source/node43
+    restart: always
+    container_name: api
+    environment:
+      DB_NAME: node
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_PORT: 3306
+      DB_DIALECT: mysql
+    ports:
+      - 3000:3000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    depends_on:
+      mysql: 
+        condition: service_healthy
+networks:
+  default:
+    name: local
+    external: true
